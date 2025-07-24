@@ -40,7 +40,7 @@ code_fix_task:
     2. The test results and failure analysis from test_execution_task
     3. The test code for understanding expected behavior
 
-    If tests failed:
+    If any test failed:
     - Identify the root cause of failures
     - Fix the original code to make all tests pass
     - Ensure the fix is minimal and maintains the original intent

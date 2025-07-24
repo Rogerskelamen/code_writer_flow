@@ -29,7 +29,7 @@ class CodeWriterFlow(Flow[PythonCodeState]):
         print(f"\nGenerating Python code for: {self.state.requirement}...\n")
         return self.state
 
-    @listen(or_(get_user_input, "iterate"))
+    @listen(get_user_input)
     def write_python_code(self, state):
         """Generate Python code based on the user's requirement"""
         print("Writing Python code...")
@@ -50,18 +50,18 @@ class CodeWriterFlow(Flow[PythonCodeState]):
         # Write the Python code using the LLM
         response = llm.call(message)
 
-        state.code = response.strip()
-        print(f"Generated code:\n{state.code}\n")
+        self.state.code = response.strip()
+        print(f"Generated code:\n{self.state.code}\n")
 
-        return state
+        return
 
-    @router(write_python_code)
-    def test_and_fix_code(self, state):
+    @listen(or_(write_python_code, "iterate"))
+    def test_and_fix_code(self):
         print("Testing and fixing code...")
 
         result = TestReviewCrew().crew().kickoff(inputs={
-            "requirement": state.requirement,
-            "code": state.code
+            "requirement": self.state.requirement,
+            "code": self.state.code
         })
 
         # parse the result(json)
@@ -70,12 +70,17 @@ class CodeWriterFlow(Flow[PythonCodeState]):
         print(f"Test results:\n{data}\n")
         data = json.loads(data)
 
-        if data['passed'] == 'true':
+        self.state.code = data["code"]
+        return data["passed"]
+
+    @router(test_and_fix_code)
+    def review_result(self, ret):
+        """Review the result of the code testing and fixing"""
+        if ret == 'true':
             print("All tests passed! Code is ready.")
             return "terminate"
         else:
             print("Code needs fixing. Let's fix it.")
-            self.state.code = data['code']
             return "iterate"
 
     @listen("terminate")
